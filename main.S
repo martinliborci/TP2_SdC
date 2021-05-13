@@ -31,7 +31,7 @@
 		#*|	Base 15:0			|	Limit 15:0			  | 0
 		#*|						|						  |
 		#*+------------------------+------------------------+
-		#*31					  16 15						  0
+		#*31				  16 15						  0
 
 		#*Tipo y S definen el tipo de segmento:
 		#*S=1 es un segmento normal
@@ -48,16 +48,19 @@
 			#/* Segmento de codigo, donde es imposible escribir (esto se define en los atributos)*/ 							
 		    .word 0xffff			#/*limite = FFFF*/		     		
 		    .word 0x0 				#/*base = 0*/		
-		    .byte 0x0
-		    .byte 0b10011010
-		    .byte 0b11001111
-		    .byte 0x0
+		    .byte 0x0 				# base = 0
+		    .byte 0b10011010		#[1:4]tipo normal,  ejecutable, no conforming y leible	
+									#[6:5]presencia = 1 (presente en ram). DPL= 00 (sistema) 	
+		    	   					# [0] el ultimo bit  es el de accedido? o que es?
+		    .byte 0b11001111		#[0:3] limite, los demas son otros atributos disponibles
+		    .byte 0x0 				# ultima parte de la base en 0
 		gdt_data:
 			#/* Segmento de datos, donde es imposible ejecutar (esto se define en los atributos)*/ 
 		    .word 0xffff
 		    .word 0x0
 		    .byte 0x0
-		    .byte 0b10010010
+		    .byte 0b10010010		#[1:4]tipo normal, no ejecutable, no ED, escribible	
+									#[6:5]presencia = 1 (presente en ram). DPL= 00 (sistema)
 		    .byte 0b11001111
 		    .byte 0x0
 		gdt_end:
