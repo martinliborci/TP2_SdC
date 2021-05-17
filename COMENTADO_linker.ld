@@ -1,30 +1,18 @@
 SECTIONS
 {
-    /* We could also pass the -Ttext 0x7C00 to as instead of doing this.
-     * If your program does not have any memory accesses, you can omit this.
-     */
+    /*      */
     . = 0x7c00;
     .text :
     {
         __start = .;
+        *(.text)        /* Inserta todo el código fuente del archivo .text a partir de aquí         */
+        . = 0x1FE;      /* mueve el puntero a 0x1FE dentro de .text. 
+                           0x1FE == 510 bytes es donde comimienza la firma del MBR (Boot signature) */
+        SHORT(0xAA55)   /* almacena estos dos bytes aquí: en las direcciones 0x1FE y 0x1FF en .text 
+                           0x1FE (510 bytes) = 0x55
+                           0x1FF (511 bytes) = 0xAA */
 
-        /* We are going to stuff everything
-         * into a text segment for now, including data.
-         * Who cares? Other segments only exist to appease C compilers.
-         */
-        *(.text)
-
-        /* Magic bytes. 0x1FE == 510.
-         *
-         * We could add this on each Gas file separately with `.word`,
-         * but this is the perfect place to DRY that out.
-         */
-        . = 0x1FE;
-        SHORT(0xAA55)
-
-        /* This is only needed if we are going to use a 2 stage boot process,
-         * e.g. by reading more disk than the default 512 bytes with BIOS `int 0x13`.
-         */
+        /* Lo que sigue a partir de aquí sólo es necesario si se utiliza un proceso de arranque en 2 etapas. */
         *(.stage2)
 
         /* Number of sectors in stage 2. Used by the `int 13` to load it from disk.
@@ -40,11 +28,13 @@ SECTIONS
          * and linking would fail with "Relocation truncated to fit"
          * because we are trying to put that into al for the int 13.
          */
-        __stage2_nsectors = ABSOLUTE((. - __start) / 512);
+        __stage2_nsectors = ABSOLUTE((. - __start) / 512); /* Número de sectores en la etapa 2. 
+                            Usado por la interrupción del BIOS int 13 para cargarla desde el disco. 
+                            El valor obtenido se guarda en la memoria como la última cosa almacenada 
+                            en la sección .stage si existe. (Ver macro STAGE2 en common.h) */
 
-        /* Ensure that the generated image is a multiple of 512 bytes long. */
-        . = ALIGN(512);
-        __end = .;
-        __end_align_4k = ALIGN(4k);
+        . = ALIGN(512);         /* La imagen generada del MBR debe tener un tamñano de 512 bytes exactamente */
+        __end = .;              /* La imagen generada del MBR debe tener un tamñana de 512 bytes exactamente */
+        __end_align_4k = ALIGN(4k); 
     }
 }
