@@ -1,10 +1,12 @@
 	.equ CODE_SEG, 8
 	.equ DATA_SEG, gdt_data - gdt_start
+	.equ PILA_SEG, gdt_pila - gdt_start
+
 
 	#/*Se empieza en modo real, con instrucciones de 16 bits*/
 	.code16
 	
-		#/*Se deben inhabilitar las interrupciones, porque no se usan en modo real*/
+		#/*Se deben inhabilitar las interrupciones, porque no se usan en modo protegido*/
 		cli 	
 
 		#/* Se carga la GDT */
@@ -49,20 +51,32 @@
 		    .word 0xffff			#/*limite = FFFF*/		     		
 		    .word 0x0 				#/*base = 0*/		
 		    .byte 0x0 				# base = 0
-		    .byte 0b10011010		#[1:4]tipo normal,  ejecutable, no conforming y leible	
-									#[6:5]presencia = 1 (presente en ram). DPL= 00 (sistema) 	
-		    	   					# [0] el ultimo bit  es el de accedido? o que es?
-		    .byte 0b11001111		#[0:3] limite, los demas son otros atributos disponibles
+		    .byte 0b10011010		#[0] accedido
+		    						#[1:4]tipo normal 1 ,  ejecutable 1 , no conforming 0 y leible 1
+		    						#[5:6]DPL= 00 (sistema)
+									#[7]presencia = 1 (presente en ram).  		    	   					
+		    .byte 0b11001111		#[0:3] limite,
+		    						#[4:7]AVL , 0, B = 1 , G=1 (pag de 4Kb, apra usar los 4Gb de memoria)
 		    .byte 0x0 				# ultima parte de la base en 0
 		gdt_data:
 			#/* Segmento de datos, donde es imposible ejecutar (esto se define en los atributos)*/ 
 		    .word 0xffff
 		    .word 0x0
 		    .byte 0x0
-		    .byte 0b10010010		#[1:4]tipo normal, no ejecutable, no ED, escribible	
-									#[6:5]presencia = 1 (presente en ram). DPL= 00 (sistema)
+		    .byte 0b10010000		#[0] accedido
+		    						#[1:4]tipo normal 1 ,  no ejecutable 0 , no ED 0 , escribible 1
+		    						#[5:6]DPL= 00 (sistema)
+									#[7]presencia = 1 (presente en ram). 
+			.byte 0b11001111		#[0:3] limite,
+		    .byte 0x0 				
+		gdt_pila:
+			.word 0xffff
+	 		.word 0x0
+	  		.byte 0x0
+			.byte 0b10010010		#[1:4]tipo normal 1 , no ejecutable 0 , no ED 0 , escribible 1	
+									#[7:5]presencia = 1 (presente en ram). DPL= 00 (sistema)
 		    .byte 0b11001111
-		    .byte 0x0
+			.byte 0x0		
 		gdt_end:
 		gdt_descriptor:
 			#/*Este es el descriptor de la DGT. La primer palabra es el tamaño,
@@ -83,14 +97,14 @@
 		    mov %ax, %es
 		    mov %ax, %fs
 		    mov %ax, %gs
+		    mov $PILA_SEG, %ax
 		    mov %ax, %ss
 
 		    #/*direccion de la pila. Es decir, el stack pointer va a appuntar a 0x7000 */
 		    mov $0X7000, %ebp
 		    mov %ebp, %esp
-		
-			#/*Para imprimir mensaje siempre con VGA!*/
 
+			#/*Para imprimir mensaje siempre con VGA!*/
 		    mov $message, %ecx
 		    mov vga_current_line, %eax
 		    mov $0, %edx
@@ -107,6 +121,7 @@
 		    mov $0x3232CE, %ah
 		loop:
 		    mov (%ecx), %al
+		    mov %ax,0x1500
 		    cmp $0, %al
 		    je end
 		    mov %ax, (%edx)
