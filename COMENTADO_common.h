@@ -593,34 +593,45 @@ end:
  * Uses and updates vga_current_line to decide the current line.
  * Loops around the to the top.
  */
+
+
+/*  Modo 80x25 
+    80 caracteres por línea
+    25 líneas por página (pantallas)
+    8 páginas
+    2 bytes por caracter: 1 byte cód ASCII, 2 bytes atributos
+    Tamaño memoria video = 32 KB = 2 bytes * 80 * 25 * 8
+    0xb8000 = dirección donde comienza la memoria de video en modo texto para pantallas a color
+*/
 .macro VGA_PRINT_STRING s
-    LOCAL loop, end
-    PUSH_EADX
-    mov \s, %ecx
-    mov vga_current_line, %eax
-    mov $0, %edx
-    /* Number of horizontal lines. */
-    mov $25, %ebx
-    div %ebx
-    mov %edx, %eax
-    /* 160 == 80 * 2 == line width * bytes per character on screen */
-    mov $160, %edx
-    mul %edx
-    /* 0xb8000 == magic video memory address which shows on the screen. */
-    lea 0xb8000(%eax), %edx
-    /* White on black. */
-    mov $0x0f, %ah
+    LOCAL loop, end             /* se definen etiquetas locales a la macro: loop y end */
+    PUSH_EADX                   /* un pusha ligero: guarda los registros de uso general en la pila */
+    mov \s, %ecx                /* se carga la dirección de comienzo del string en ECX */
+    mov vga_current_line, %eax  /* vga_current_line (32 bits) se define en macro PROTECTED_MODE */
+    mov $0, %edx                /* EDX = 0 para realizar la división que sigue */
+    mov $25, %ebx               /* 25 líneas horizontales en pantalla */
+    div %ebx                    /* EDX(0):EAX(N°LineaAbsoluto) / EBX(N°LineasxPag(25)) 
+                                   => EAX = cociente(N°Pagina), EDX = resto(N°LineaEnEsaPag) */
+    mov %edx, %eax              /* se copia el resto(N°LineaEnEsaPag) a EAX */
+    mov $160, %edx              /* 160 = 80 * 2 = 80 caracteres por línea * 2 bytes por caracter 
+                                       = bytes a escribir por línea */
+    mul %edx                    /* EDX:EAX = EAX(N°LineaEnEsaPag) * EDX(bytesxLínea) 
+                                           = cantidad de bytes a escribir en la pantalla */
+    lea 0xb8000(%eax), %edx     /* EDX = 0xb8000 + cantBytesAEscribir 
+                                       = dirección de memoria de video donde comenzar a escribir */
+    mov $0x0f, %ah              /* 0x0F = 0(letraBlanca) F(fondoNegro) */
 loop:
-    mov (%ecx), %al
-    cmp $0, %al
-    je end
-    mov %ax, (%edx)
-    add $1, %ecx
-    add $2, %edx
-    jmp loop
+    mov (%ecx), %al             /* AL = 1° bytes del string */
+    cmp $0, %al                 /* ¿es el final del string? */
+    je end                      /* si lo es, no sigo copiando */
+    mov %ax, (%edx)             /* AX = AH(0x0F) AL(dirByteAImprimir) 
+                                      = formato del caracter a imprimir en pantalla */
+    add $1, %ecx                /* siguiente caracter en formato ASCII en el string a imprimir */
+    add $2, %edx                /* siguiente caracter en formato VGA a imprimir */
+    jmp loop                    
 end:
-    incl vga_current_line
-    POP_EDAX
+    incl vga_current_line   /* la línea actual pasa a ser la siguiente línea a escribir */
+    POP_EDAX                /* un popa ligero: saca los registros de uso general en la pila */
 .endm
 
 /* Print a 32-bit r/m/immm in hex.
